@@ -4,3 +4,6 @@ In test/benchmarks/benchmark_multipart_parsing.rb you will find some benchmarkin
 
 Look in the results folder for the results.
 
+To run the tests yourself, bundle install and then
+
+```bundle exec ruby -Ilib:test test/benchmarks/benchmark_multipart_parsing.rb```

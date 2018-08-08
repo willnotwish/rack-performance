@@ -7,43 +7,37 @@ require 'minitest/benchmark'
 class BenchmarkMultipartParsing < Minitest::Benchmark
 
   def self.bench_range
-    bench_linear( 50, 500, 50 )
+    bench_linear( 50, 500, 50 ) # 50, 100, 150 ... 500
   end
 
   def bench_parser
-    begin
-      previous_limit = Rack::Utils.multipart_part_limit
-      Rack::Utils.multipart_part_limit = 0
+    # Build and cache the requests before we start testing
+    requests = self.class.bench_range.reduce({}) do |hash, product_count|
+      hash[product_count.to_s] = build_request(product_count)
+      hash
+    end
 
-      requests = {}
-      puts self.class.bench_range
-      self.class.bench_range.each do |complexity|
-        requests[complexity.to_s] = mock_request(complexity)
-      end
-
-      assert_performance_linear 0.99 do |complexity|
-        Rack::Multipart.parse_multipart(requests[complexity.to_s])
-      end
-    ensure
-      Rack::Utils.multipart_part_limit = previous_limit
+    # Now the test: that the time taken is directly proportional
+    # to the number of products
+    assert_performance_linear 0.99 do |product_count|
+      Rack::Multipart.parse_multipart(requests[product_count.to_s])
     end
   end
 
-  def mock_request(product_count)
-    file = Rack::Multipart::UploadedFile.new(multipart_file("file1.txt"))
-    params = { "file" => file }
-
+  def build_request(product_count)
     # One big sale, composed of many products
-    params['sale[name]'] = "Test sale with #{product_count} products"
-
-    product_count.times do |product_index|
-      params["sale[product_attributes][#{product_index}][name]"] = "Product #{product_index}"
-
-      # Each product has (say) 250 attributes
-      250.times do |attr_index|
-        params["sale[product_attributes][#{product_index}][attr-#{attr_index}]"] = "product attribute #{attr_index} value"
+    params = product_count.times.reduce({}) do |hash, product_index|
+      # Each product has 250 nested attributes
+      nested_attrs = 250.times.reduce({}) do |attrs, index|
+        key = "sale[product_attributes][#{product_index}][attr-#{index}]"
+        attrs[key] = "product attribute #{index} value"
+        attrs
       end
+      hash.merge nested_attrs
     end
+    # Need at least one uploaded file otherwise the encoding
+    # won't be multipart/form-data
+    params['file'] = Rack::Multipart::UploadedFile.new(multipart_file("file1.txt"))
 
     data  = Rack::Multipart.build_multipart(params)
     options = {
@@ -56,5 +50,15 @@ class BenchmarkMultipartParsing < Minitest::Benchmark
 
   def multipart_file(name)
     File.join(File.dirname(__FILE__), "..", "multipart", name.to_s)
+  end
+
+  # Need to override the multipart limit
+  def setup
+    @previous_limit = Rack::Utils.multipart_part_limit
+    Rack::Utils.multipart_part_limit = 0
+  end
+
+  def teardown
+    Rack::Utils.multipart_part_limit = previous_limit
   end
 end
