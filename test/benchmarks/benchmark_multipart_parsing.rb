@@ -6,10 +6,6 @@ require 'minitest/benchmark'
 
 class BenchmarkMultipartParsing < Minitest::Benchmark
 
-  def self.bench_range
-    bench_linear( 50, 500, 50 ) # 50, 100, 150 ... 500
-  end
-
   def bench_parser
     # Build and cache the requests before we start testing
     requests = self.class.bench_range.reduce({}) do |hash, product_count|
@@ -22,6 +18,12 @@ class BenchmarkMultipartParsing < Minitest::Benchmark
     assert_performance_linear 0.99 do |product_count|
       Rack::Multipart.parse_multipart(requests[product_count.to_s])
     end
+  end
+
+  private
+
+  def self.bench_range
+    bench_linear( 50, 500, 50 ) # 50, 100, 150 ... 500
   end
 
   def build_request(product_count)
@@ -59,6 +61,6 @@ class BenchmarkMultipartParsing < Minitest::Benchmark
   end
 
   def teardown
-    Rack::Utils.multipart_part_limit = previous_limit
+    Rack::Utils.multipart_part_limit = @previous_limit
   end
 end
