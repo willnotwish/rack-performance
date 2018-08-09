@@ -1,5 +1,7 @@
-PATH
-  remote: ../../../rack
+GIT
+  remote: git://github.com/willnotwish/rack.git
+  revision: d08f14599e309e4e7bdde945e3f8d196341374bf
+  branch: master
   specs:
     rack (2.0.1)
 
